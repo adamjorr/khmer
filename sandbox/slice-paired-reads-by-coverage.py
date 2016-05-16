@@ -38,6 +38,7 @@ import argparse
 import screed
 import sys
 import khmer
+import multiprocessing 
 
 
 def output_single(read):
@@ -46,11 +47,63 @@ def output_single(read):
     else:
         return ">%s\n%s\n" % (read.name, read.sequence)
 
+class HT_Manager(BaseManager):
+    pass    
+
+def thread_init(ht, mn, mx):
+    global htable
+    global args.min_coverage
+    global args.max_coverage
+    htable = ht
+    args.min_coverage=mn
+    args.max_coverage=mx
+
+def process(x):
+    read1, read2 = x
+    seq = read1.sequence.upper()
+    seq = seq.replace('N', 'A')
+    pseq = read2.sequence.upper()
+    pseq = pseq.replace('N','A')
+
+    try:
+        med, _, _ = htable.get_median_count(seq)
+        pmed, _, _ = htable.get_median_count(pseq)
+    except ValueError:
+        continue
+
+    keep = True
+    pkeep = True
+
+    if args.min_coverage:
+        if med < args.min_coverage:
+            keep = False
+        if pmed < args.min_coverage:
+            pkeep = False
+
+    if args.max_coverage:
+        if med > args.max_coverage:
+            keep = False
+        if pmed > args.max_coverage:
+            pkeep = False
+
+    if keep and pkeep:
+        n_kept += 2
+        return (record,pair_record)
+
+    elif args.output_singlefile:
+        if keep:
+            n_kept += 1
+            return(record,)
+        elif pkeep:
+            n_kept += 1
+            return(,pair_record)
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--min-coverage', type=int, default=None)
     parser.add_argument('-M', '--max-coverage', type=int, default=None)
+    parser.add_argument('-T', '--threads', type=int, default=None)
     parser.add_argument('input_count_graph')
     parser.add_argument('input_readfile')
     parser.add_argument('input_pairfile')
@@ -71,7 +124,6 @@ def main():
         print("min_coverage > max_coverage!? exiting!", file=sys.stderr)
         sys.exit(1)
 
-    htable = khmer.load_countgraph(args.input_count_graph)
     output_file = args.output_readfile
     output_fp = open(output_file, 'w')
     output_pairfile = args.output_pairfile
@@ -83,50 +135,77 @@ def main():
 
     n_kept = 0
     n = 0
-    pair_iter = iter(screed.open(args.input_pairfile))
 
-    for n, record in enumerate(screed.open(args.input_readfile)):
-        if n % 100000 == 0:
-            print('...', n, n_kept, file=sys.stderr)
+    if args.threads:
+        HT_Manager.register('get_ht',khmer.load_countgraph)
+        manager = HT_Manager()
+        manager.start()
+        htable = manager.get_ht(args.input_count_graph)
+        pool = Pool(processes=args.threads, initializer=thread_init, initargs=[htable,args.min_coverage,args.max_coverage])
+        it1 = iter(screed.open(args.input_readfile))
+        it2 = iter(screed.open(args.input_pairfile))
+        for result in pool.imap(process,izip(it1,it2),chunksize=1000):
+            if n % 100000 == 0:
+                print('...', n, n_kept, file=sys.stderr)
+            n += 2
+            if result[0] and result[1]:
+                n_kept += 2
+                output_fp.write(output_single(result[0]))
+                output_pfp.write(output_single(result[1]))
+            elif args.output_singlefile:
+                if result[0]:
+                    n_kept += 1
+                    output_sfp.write(output_single(result[0]))
+                elif result[1]:
+                    n_kept += 1
+                    output_sfp.write(output_single(result[1]))
 
-        seq = record.sequence.upper()
-        seq = seq.replace('N', 'A')
-        pair_record = pair_iter.next()
-        pseq = pair_record.sequence.upper()
-        pseq = pseq.replace('N','A')
+    else:
+        htable = khmer.load_countgraph(args.input_count_graph)
+        pair_iter = iter(screed.open(args.input_pairfile))
 
-        try:
-            med, _, _ = htable.get_median_count(seq)
-            pmed, _, _ = htable.get_median_count(pseq)
-        except ValueError:
-            continue
+        for n, record in enumerate(screed.open(args.input_readfile)):
+            if n % 100000 == 0:
+                print('...', n, n_kept, file=sys.stderr)
 
-        keep = True
-        pkeep = True
-        if args.min_coverage:
-            if med < args.min_coverage:
-                keep = False
-            if pmed < args.min_coverage:
-                pkeep = False
+            seq = record.sequence.upper()
+            seq = seq.replace('N', 'A')
+            pair_record = pair_iter.next()
+            pseq = pair_record.sequence.upper()
+            pseq = pseq.replace('N','A')
 
-        if args.max_coverage:
-            if med > args.max_coverage:
-                keep = False
-            if pmed > args.min_coverage:
-                pkeep = False
+            try:
+                med, _, _ = htable.get_median_count(seq)
+                pmed, _, _ = htable.get_median_count(pseq)
+            except ValueError:
+                continue
 
-        if keep and pkeep:
-            n_kept += 2
-            output_fp.write(output_single(record))
-            output_pfp.write(output_single(pair_record))
+            keep = True
+            pkeep = True
+            if args.min_coverage:
+                if med < args.min_coverage:
+                    keep = False
+                if pmed < args.min_coverage:
+                    pkeep = False
 
-        elif args.output_singlefile:
-            if keep:
-                n_kept += 1
-                output_sfp.write(output_single(record))
-            elif pkeep:
-                n_kept += 1
-                output_sfp.write(output_single(pair_record))
+            if args.max_coverage:
+                if med > args.max_coverage:
+                    keep = False
+                if pmed > args.max_coverage:
+                    pkeep = False
+
+            if keep and pkeep:
+                n_kept += 2
+                output_fp.write(output_single(record))
+                output_pfp.write(output_single(pair_record))
+
+            elif args.output_singlefile:
+                if keep:
+                    n_kept += 1
+                    output_sfp.write(output_single(record))
+                elif pkeep:
+                    n_kept += 1
+                    output_sfp.write(output_single(pair_record))
 
     print('consumed %d reads; kept %d' % (2 * (n + 1), n_kept), file=sys.stderr)
 
