@@ -160,7 +160,7 @@ def main():
         it2 = iter(screed.open(args.input_pairfile))
         passable_generator = imap(txt_generator,it1,it2)
         it3 = pool.imap(find_cov,passable_generator,chunksize=1000)
-        for read1, read2 in it4:
+        for read1, read2 in it3:
             if n % 100000 == 0:
                 print('...', n, n_kept, file=sys.stderr)
             n += 2
