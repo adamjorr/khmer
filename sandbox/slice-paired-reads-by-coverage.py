@@ -149,21 +149,21 @@ def main():
                     initargs=[htable,args.min_coverage,args.max_coverage,args.output_singlefile])
         it1 = iter(screed.open(args.input_readfile))
         it2 = iter(screed.open(args.input_pairfile))
-        for result in pool.imap(process,izip(it1,it2),chunksize=1000):
+        for read1, read2 in pool.imap(process,izip(it1,it2),chunksize=1000):
             if n % 100000 == 0:
                 print('...', n, n_kept, file=sys.stderr)
             n += 2
-            if result[0] and result[1]:
+            if read1 and read2:
                 n_kept += 2
-                output_fp.write(output_single(result[0]))
-                output_pfp.write(output_single(result[1]))
+                output_fp.write(output_single(read1))
+                output_pfp.write(output_single(read2))
             elif args.output_singlefile:
-                if result[0]:
+                if read1:
                     n_kept += 1
-                    output_sfp.write(output_single(result[0]))
-                elif result[1]:
+                    output_sfp.write(output_single(read1))
+                elif read2:
                     n_kept += 1
-                    output_sfp.write(output_single(result[1]))
+                    output_sfp.write(output_single(read2))
 
     else:
         htable = khmer.load_countgraph(args.input_count_graph)
