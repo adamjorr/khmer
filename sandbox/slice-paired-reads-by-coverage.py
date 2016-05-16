@@ -71,7 +71,7 @@ def process(x):
         med, _, _ = htable.get_median_count(seq)
         pmed, _, _ = htable.get_median_count(pseq)
     except ValueError:
-        continue
+        return (None, None)
 
     keep = True
     pkeep = True
@@ -95,10 +95,10 @@ def process(x):
     elif single_file:
         if keep:
             n_kept += 1
-            return(record,None)
+            return (record,None)
         elif pkeep:
             n_kept += 1
-            return(None,pair_record)
+            return (None,pair_record)
 
 
 def main():
