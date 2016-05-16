@@ -38,6 +38,7 @@ import argparse
 import screed
 import sys
 import khmer
+import itertools
 from multiprocessing import Pool
 from multiprocessing.managers import BaseManager
 
