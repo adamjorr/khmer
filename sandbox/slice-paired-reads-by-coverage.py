@@ -150,6 +150,8 @@ def main():
     n = 0
 
     if args.threads:
+        n_kept = 0
+        n = 0
         HT_Manager.register('get_ht',khmer.load_countgraph)
         manager = HT_Manager()
         manager.start()
