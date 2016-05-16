@@ -62,7 +62,7 @@ def thread_init(ht, mn, mx, sf):
     max_coverage=mx
     single_file = sf
 
-def process(x):
+def find_cov(x):
     read1, read2 = x
     seq = read1.sequence.upper()
     seq = seq.replace('N', 'A')
@@ -149,7 +149,9 @@ def main():
                     initargs=[htable,args.min_coverage,args.max_coverage,args.output_singlefile])
         it1 = iter(screed.open(args.input_readfile))
         it2 = iter(screed.open(args.input_pairfile))
-        for read1, read2 in pool.imap(process,izip(it1,it2),chunksize=1000):
+        it3 = izip(it1,it2)
+        it4 = pool.imap(find_cov,it3,chunksize=1000)
+        for read1, read2 in it4:
             if n % 100000 == 0:
                 print('...', n, n_kept, file=sys.stderr)
             n += 2
