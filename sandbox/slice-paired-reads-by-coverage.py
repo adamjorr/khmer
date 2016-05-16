@@ -38,7 +38,7 @@ import argparse
 import screed
 import sys
 import khmer
-import itertools
+from itertools import izip
 from multiprocessing import Pool
 from multiprocessing.managers import BaseManager
 
