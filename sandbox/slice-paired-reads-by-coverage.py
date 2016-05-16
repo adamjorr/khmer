@@ -39,7 +39,7 @@ import screed
 import sys
 import khmer
 import multiprocessing
-import multiprocessing.managers
+from multiprocessing.managers import BaseManager
 
 
 def output_single(read):
