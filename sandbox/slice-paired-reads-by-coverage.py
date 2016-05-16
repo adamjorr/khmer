@@ -38,7 +38,7 @@ import argparse
 import screed
 import sys
 import khmer
-from itertools import izip
+from itertools import izip, imap
 from multiprocessing import Pool
 from multiprocessing.managers import BaseManager
 
@@ -48,6 +48,13 @@ def output_single(read):
         return "@%s\n%s\n+\n%s\n" % (read.name, read.sequence, read.quality)
     else:
         return ">%s\n%s\n" % (read.name, read.sequence)
+
+def output_txt(read):
+    name, seq, qual = read
+    return "@%s\n%s\n+\n%s\n" % (name, seq, qual)
+
+def txt_generator(r1,r2):
+    return (r1.name, r1.sequence, r1.quality), (r2.name, r2.sequence, r2.quality)
 
 class HT_Manager(BaseManager):
     pass    
@@ -64,9 +71,11 @@ def thread_init(ht, mn, mx, sf):
 
 def find_cov(x):
     read1, read2 = x
-    seq = read1.sequence.upper()
+    name1, seq1, qual1 = read1
+    name2, seq2, qual2 = read2
+    seq = seq1.upper()
     seq = seq.replace('N', 'A')
-    pseq = read2.sequence.upper()
+    pseq = seq2.upper()
     pseq = pseq.replace('N','A')
 
     try:
@@ -149,23 +158,23 @@ def main():
                     initargs=[htable,args.min_coverage,args.max_coverage,args.output_singlefile])
         it1 = iter(screed.open(args.input_readfile))
         it2 = iter(screed.open(args.input_pairfile))
-        it3 = izip(it1,it2)
-        it4 = pool.imap(find_cov,it3,chunksize=1000)
+        passable_generator = imap(txt_generator,it1,it2)
+        it3 = pool.imap(find_cov,passable_generator,chunksize=1000)
         for read1, read2 in it4:
             if n % 100000 == 0:
                 print('...', n, n_kept, file=sys.stderr)
             n += 2
             if read1 and read2:
                 n_kept += 2
-                output_fp.write(output_single(read1))
-                output_pfp.write(output_single(read2))
+                output_fp.write(output_txt(read1))
+                output_pfp.write(output_txt(read2))
             elif args.output_singlefile:
                 if read1:
                     n_kept += 1
-                    output_sfp.write(output_single(read1))
+                    output_sfp.write(output_txt(read1))
                 elif read2:
                     n_kept += 1
-                    output_sfp.write(output_single(read2))
+                    output_sfp.write(output_txt(read2))
 
     else:
         htable = khmer.load_countgraph(args.input_count_graph)
