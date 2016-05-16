@@ -92,15 +92,15 @@ def process(x):
 
     if keep and pkeep:
         n_kept += 2
-        return (record,pair_record)
+        return (read1,read2)
 
     elif single_file:
         if keep:
             n_kept += 1
-            return (record,None)
+            return (read1,None)
         elif pkeep:
             n_kept += 1
-            return (None,pair_record)
+            return (None,read2)
 
 
 def main():
