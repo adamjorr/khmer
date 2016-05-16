@@ -100,15 +100,12 @@ def find_cov(x):
             pkeep = False
 
     if keep and pkeep:
-        n_kept += 2
         return (read1,read2)
 
     elif single_file:
         if keep:
-            n_kept += 1
             return (read1,None)
         elif pkeep:
-            n_kept += 1
             return (None,read2)
 
 
