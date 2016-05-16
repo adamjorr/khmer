@@ -50,13 +50,15 @@ def output_single(read):
 class HT_Manager(BaseManager):
     pass    
 
-def thread_init(ht, mn, mx):
+def thread_init(ht, mn, mx, sf):
     global htable
-    global args.min_coverage
-    global args.max_coverage
+    global min_coverage
+    global max_coverage
+    global single_file
     htable = ht
-    args.min_coverage=mn
-    args.max_coverage=mx
+    min_coverage=mn
+    max_coverage=mx
+    single_file = sf
 
 def process(x):
     read1, read2 = x
@@ -74,23 +76,23 @@ def process(x):
     keep = True
     pkeep = True
 
-    if args.min_coverage:
-        if med < args.min_coverage:
+    if min_coverage:
+        if med < min_coverage:
             keep = False
-        if pmed < args.min_coverage:
+        if pmed < min_coverage:
             pkeep = False
 
-    if args.max_coverage:
-        if med > args.max_coverage:
+    if max_coverage:
+        if med > max_coverage:
             keep = False
-        if pmed > args.max_coverage:
+        if pmed > max_coverage:
             pkeep = False
 
     if keep and pkeep:
         n_kept += 2
         return (record,pair_record)
 
-    elif args.output_singlefile:
+    elif single_file:
         if keep:
             n_kept += 1
             return(record,)
@@ -141,7 +143,8 @@ def main():
         manager = HT_Manager()
         manager.start()
         htable = manager.get_ht(args.input_count_graph)
-        pool = Pool(processes=args.threads, initializer=thread_init, initargs=[htable,args.min_coverage,args.max_coverage])
+        pool = Pool(processes=args.threads, initializer=thread_init,
+                    initargs=[htable,args.min_coverage,args.max_coverage,args.output_singlefile])
         it1 = iter(screed.open(args.input_readfile))
         it2 = iter(screed.open(args.input_pairfile))
         for result in pool.imap(process,izip(it1,it2),chunksize=1000):
