@@ -38,7 +38,8 @@ import argparse
 import screed
 import sys
 import khmer
-import multiprocessing 
+import multiprocessing
+import multiprocessing.managers
 
 
 def output_single(read):
