@@ -108,6 +108,8 @@ def find_cov(x):
         elif pkeep:
             return (None,read2)
 
+    return (None, None)
+
 
 def main():
     parser = argparse.ArgumentParser()
